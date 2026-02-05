@@ -844,7 +844,7 @@ func (arw *AlertRuleWorker) GetHostAnomalyPoint(ruleConfig string) ([]models.Ano
 				}
 				m["ident"] = target.Ident
 
-				lst = append(lst, models.NewAnomalyPoint(trigger.Type, m, now, float64(now-target.UpdateAt), trigger.Severity))
+				lst = append(lst, models.NewAnomalyPoint(trigger.Type, m, now, float64(now-target.BeatTime), trigger.Severity))
 			}
 		case "offset":
 			idents, exists := arw.Processor.TargetsOfAlertRuleCache.Get(arw.Processor.EngineName, arw.Rule.Id)
@@ -873,7 +873,7 @@ func (arw *AlertRuleWorker) GetHostAnomalyPoint(ruleConfig string) ([]models.Ano
 					continue
 				}
 				if target, exists := targetMap[ident]; exists {
-					if now-target.UpdateAt > 120 {
+					if now-target.BeatTime > 120 {
 						// means this target is not a active host, do not check offset
 						continue
 					}
@@ -1614,11 +1614,15 @@ func (arw *AlertRuleWorker) GetAnomalyPoint(rule *models.AlertRule, dsId int64) 
 							continue
 						}
 
-						switch v.(type) {
-						case float64:
-							values += fmt.Sprintf("%s:%.3f ", k, v)
-						case string:
-							values += fmt.Sprintf("%s:%s ", k, v)
+						if u, exists := valuesUnitMap[k]; exists { // 配置了单位，优先用配置了单位的值
+							values += fmt.Sprintf("%s:%s ", k, u.Text)
+						} else {
+							switch v.(type) {
+							case float64:
+								values += fmt.Sprintf("%s:%.3f ", k, v)
+							case string:
+								values += fmt.Sprintf("%s:%s ", k, v)
+							}
 						}
 					}
 
